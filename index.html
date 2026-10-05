@@ -14,6 +14,7 @@ html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple
 #box{position:relative;height:100%;aspect-ratio:9/16;max-width:100%;max-height:100%;overflow:hidden;background:#fde9f1}
 #box.fit{width:100%;height:auto}
 video,#frame,#shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+video{transition:opacity .2s}
 video.mirror{transform:scaleX(-1)}
 #frame{pointer-events:none;object-fit:fill}
 #shot{display:none;object-fit:fill}
@@ -75,16 +76,19 @@ async function open(vc){
 }
 async function startCam(){
   try{
-    // ลองหลายค่า เลือกภาพแนวตั้งที่ความละเอียดสูงสุด
-    const tries=[{width:{ideal:1080},height:{ideal:1920}},{width:{ideal:1920},height:{ideal:1080}},{width:{ideal:1440},height:{ideal:1920}},{width:{ideal:2160},height:{ideal:3840}},{}];
-    let best=null,bestPx=0;
+    // เปิดกล้องครั้งเดียวถ้าได้ภาพแนวตั้งแล้ว หยุดทันที (ไม่ลองซ้ำ จึงไม่สะดุด)
+    v.style.opacity=0;
+    const tries=[{width:{ideal:1080},height:{ideal:1920}},{width:{ideal:1920},height:{ideal:1080}},{}];
+    let best=null,bestPx=0,cur=null;
     for(const c of tries){
-      try{await open(c);}catch(e){continue;}
+      try{await open(c);cur=c;}catch(e){continue;}
       const portrait=v.videoHeight>=v.videoWidth||innerWidth>innerHeight;
       const px=v.videoWidth*v.videoHeight;
       if(portrait&&px>bestPx){best=c;bestPx=px;}
+      if(portrait&&Math.min(v.videoWidth,v.videoHeight)>=720)break;
     }
-    if(best){await open(best);}
+    if(best&&cur!==best){await open(best);}
+    v.style.opacity=1;
     if(!stream)throw 0;
     v.classList.toggle('mirror',facing==='user');
     msg.style.display='none';
