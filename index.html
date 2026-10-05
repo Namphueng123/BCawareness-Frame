@@ -74,25 +74,30 @@ async function open(vc){
   v.srcObject=stream;await v.play();
   if(!v.videoWidth)await new Promise(r=>v.addEventListener('loadedmetadata',r,{once:true}));
 }
+const TRIES=[{width:{ideal:1080},height:{ideal:1920}},{width:{ideal:1920},height:{ideal:1080}},{}];
+const isPortrait=()=>v.videoHeight>=v.videoWidth||innerWidth>innerHeight;
+function saved(){try{const n=localStorage.getItem('cam_'+facing);return n===null?null:+n;}catch(e){return null;}}
+function save(n){try{localStorage.setItem('cam_'+facing,n);}catch(e){}}
+function cover(txt){msg.style.display='flex';msg.style.background='#fde9f1';msg.style.color='#d63a73';msg.firstElementChild.innerHTML=txt;}
+
 async function startCam(){
+  cover('กำลังเปิดกล้อง...');
   try{
-    // เปิดกล้องครั้งเดียวถ้าได้ภาพแนวตั้งแล้ว หยุดทันที (ไม่ลองซ้ำ จึงไม่สะดุด)
-    v.style.opacity=0;
-    const tries=[{width:{ideal:1080},height:{ideal:1920}},{width:{ideal:1920},height:{ideal:1080}},{}];
-    let best=null,bestPx=0,cur=null;
-    for(const c of tries){
-      try{await open(c);cur=c;}catch(e){continue;}
-      const portrait=v.videoHeight>=v.videoWidth||innerWidth>innerHeight;
-      const px=v.videoWidth*v.videoHeight;
-      if(portrait&&px>bestPx){best=c;bestPx=px;}
-      if(portrait&&Math.min(v.videoWidth,v.videoHeight)>=720)break;
+    let n=saved(),ok=false;
+    // รอบถัดไป: ใช้ค่าที่เคยได้ผลเปิดครั้งเดียว ไม่กระพริบ
+    if(n!==null){try{await open(TRIES[n]);ok=isPortrait();}catch(e){}}
+    // ครั้งแรก: หาค่าที่ได้ภาพแนวตั้ง (ซ่อนไว้หลังหน้า "กำลังเปิดกล้อง")
+    if(!ok){
+      for(let i=0;i<TRIES.length;i++){
+        try{await open(TRIES[i]);}catch(e){continue;}
+        if(isPortrait()){save(i);ok=true;break;}
+      }
     }
-    if(best&&cur!==best){await open(best);}
-    v.style.opacity=1;
     if(!stream)throw 0;
     v.classList.toggle('mirror',facing==='user');
-    msg.style.display='none';
+    msg.style.display='none';msg.style.background='';msg.style.color='';
   }catch(e){
+    msg.style.background='';msg.style.color='';
     show('ไม่สามารถเข้าถึงกล้องได้<br>กรุณากด "อนุญาต" เมื่อเบราว์เซอร์ขอสิทธิ์ใช้กล้อง<br>หรือเปิดสิทธิ์กล้องในการตั้งค่าเบราว์เซอร์',true);
   }
 }
